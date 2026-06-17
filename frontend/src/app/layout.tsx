@@ -8,8 +8,8 @@ type Props = {
 }
 
 export const metadata: Metadata = {
-  title: "Prueba Tecnica Junior",
-  description: "Starter frontend para prueba tecnica junior fullstack",
+  title: "Payments Reconciliation",
+  description: "Frontend del modulo de conciliacion de pagos de arriendo.",
 }
 
 export default function RootLayout({ children }: Props): ReactNode {

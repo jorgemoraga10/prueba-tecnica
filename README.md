@@ -1,151 +1,168 @@
-# Prueba Técnica Fullstack
+# Como correr el proyecto
 
-Stack: Django + DRF + PostgreSQL + Docker + Next.js
+Este archivo deja el paso a paso mas simple para levantar la base de datos, el backend y el frontend.
 
-## Objetivo
-
-Construir un módulo de conciliación de pagos de arriendo con flujo completo:
-
-```txt
-Frontend (Next.js) -> API (Django) -> PostgreSQL -> Frontend
-```
-
-Buscamos ver cómo modelas un dominio real, cómo estructuras el backend y el frontend,
-y qué criterio aplicas cuando el enunciado no lo define todo. Puedes (y se espera que)
-uses IA, pero evaluamos tu pensamiento crítico sobre lo que produce.
-
-## Requisitos previos
+## Requisitos
 
 - Docker Desktop
-- Python 3.11+
+- Python 3.11
 - Node.js 20+
-- Yarn
-- PDM
+- PDM instalado
+- npm instalado
 
-## Setup
+## 1. Levantar la base de datos
 
-### 1) Base de datos
+Desde la raiz del proyecto:
 
 ```bash
-docker compose --file "docker-compose.yml" up -d
+docker compose up -d
 ```
 
-### 2) Backend
+Esto levanta PostgreSQL usando el `docker-compose.yml`.
+
+## 2. Levantar el backend
+
+Abre una terminal en la carpeta `backend`:
 
 ```bash
 cd backend
-cp .env.example .env
-pdm install
-pdm migrate
-pdm dev
 ```
 
-Backend: `http://localhost:8000`
+Crea el archivo `.env` si aun no existe:
 
-### 3) Frontend
+```bash
+cp .env.example .env
+```
+
+Instala dependencias:
+
+```bash
+pdm install
+```
+
+Aplica migraciones:
+
+```bash
+pdm run python manage.py migrate
+```
+
+Levanta el servidor:
+
+```bash
+pdm run python manage.py runserver
+```
+
+Backend disponible en:
+
+```txt
+http://localhost:8000
+```
+
+Swagger disponible en:
+
+```txt
+http://localhost:8000/api/docs/
+```
+
+## 3. Levantar el frontend
+
+Abre otra terminal en la carpeta `frontend`:
 
 ```bash
 cd frontend
-cp .env.example .env.local
-yarn install
-yarn dev
 ```
 
-Frontend: `http://localhost:3000/tasks`
+Crea el archivo `.env.local` si aun no existe:
 
-## Contexto del dominio
+```bash
+cp .env.example .env.local
+```
 
-Cada mes generamos los cobros de arriendo
-de cada contrato, y por otro lado recibimos transferencias bancarias reales. El trabajo
-operativo consiste en **conciliar**: decidir qué transferencias pagan qué cobros.
+Verifica que `NEXT_PUBLIC_API_URL` apunte al backend:
 
-Dos conceptos:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-- **Collection**: un monto mensual cobrado por arriendo. Tiene una moneda propia
-(CLP o UF). Ejemplo: el arriendo de abril 2026 del contrato 123, por UF 2.
-  ```json
-  {
-    "contract_id": 123,
-    "mes_cobro": "2026-04-01",
-    "monto_cobro": 2,
-    "moneda": "UF"
-  }
-  ```
-- **BankMovement**: una transferencia real recibida. **Siempre en CLP**, monto > 0.
+Instala dependencias:
 
-La relación entre ambos es de many-to-many:
+```bash
+npm install
+```
 
-- Un cobro puede pagarse en varias transferencias (pago parcial / fraccionado).
-- Una transferencia puede pagar varios cobros.
+Levanta el frontend:
 
-## Reglas de negocio
+```bash
+npm run dev
+```
 
-- **Conversión de moneda**: las transferencias siempre llegan en CLP. Para pagar un
-cobro en UF, usa una **UF fija de $40.000**.
-- **Cuánto falta por pagar** se determina comparando lo abonado contra el monto del
-cobro, **en la moneda original del cobro**. No basta con sumar pesos: un cobro en UF
-está pagado cuando lo abonado equivale a su monto en UF.
-- **Sobrepagos**: si una transferencia aporta más de lo que el cobro necesita, el  
-excedente queda como **saldo a favor** (no se pierde, no bloquea la operación).
+Frontend disponible en:
 
-## Modelos
+```txt
+http://localhost:3000
+```
 
-Estos son los campos **mínimos**. Puedes (y probablemente necesitarás) agregar modelos y campos adicionales.
+Modulo principal:
 
-`Collection`
+```txt
+http://localhost:3000/tasks
+```
 
-- `collection_id`
-- `contract_id`
-- `mes_cobro`
-- `monto_cobro`
-- `moneda` (CLP o UF)
+## 4. Orden recomendado para correr todo
 
-`BankMovement`
+1. `docker compose up -d`
+2. levantar backend en `backend`
+3. levantar frontend en `frontend`
 
-- `bank_movement_id`
-- `fecha`
-- `glosa`
-- `monto` (CLP, > 0)
+## 5. Si algo falla
 
-## Backend
+- Revisa que Docker este corriendo.
+- Revisa que el puerto `5432` no este ocupado.
+- Revisa que el backend este corriendo en `http://localhost:8000`.
+- Revisa que `NEXT_PUBLIC_API_URL` en el frontend apunte al backend.
+- Si cambias modelos en Django, vuelve a correr migraciones.
 
-Implementar modelos, migraciones, serializers, views y urls.
+## 6. Funcionalidades implementadas
 
-Como mínimo, la API debe permitir:
+- Crear, listar, editar y eliminar cobros.
+- Crear, listar, editar y eliminar movimientos bancarios.
+- Conciliar un movimiento contra uno o varios cobros pendientes.
+- Ver saldo pendiente y saldo disponible en tiempo real.
+- Ver historico de cobros con detalle de pagos asociados.
+- Swagger disponible para probar la API.
 
-- Crear y listar `Collection`.
-- Crear y listar `BankMovement`.
-- Asociar **un** `BankMovement` a uno o más `Collection` para pagarlos
-(incluyendo pagos parciales).
-- Consultar el histórico de cobros, distinguiendo los pendientes de los pagados, y
-para los que tienen pagos, el detalle de qué transferencias los pagaron y con cuánto.
+## 7. Adiciones a la base de datos
 
-El diseño de rutas y recursos es tuyo. Mantén el alcance funcional descrito.
+- Se agrego la tabla `PaymentAllocation` para resolver la relacion entre cobros y movimientos.
+- Se agregaron campos de auditoria `created_at` y `updated_at` en las tablas principales.
+- Se agregaron restricciones para evitar montos `0` o negativos.
+- Se agrego una restriccion unica para no duplicar un mismo cobro por `contrato + mes + moneda`.
+- Se calcularon saldos usando relaciones y agregaciones entre tablas, sin guardar esos totales de forma fija.
 
-## Frontend
+## 8. Supuestos que tome para el desarrollo
 
-Implementar como mínimo:
+- La UF se fijo en `40.000 CLP` durante toda la prueba.
+- Los movimientos bancarios siempre se registran en `CLP`.
+- Un cobro puede recibir pagos parciales desde varios movimientos.
+- Un movimiento puede distribuirse entre varios cobros.
+- Si un cobro ya tiene pagos asociados, no se puede editar ni eliminar.
+- Si un movimiento ya tiene asignaciones asociadas, no se puede editar ni eliminar.
+- La conciliacion parte desde un movimiento con saldo disponible.
 
-- Crear `Collection` y `BankMovement`.
-- Flujo de conciliación: tomar un `BankMovement` y asignarlo a uno o más cobros,
-indicando cuánto se abona a cada uno.
-- Histórico de cobros: pendientes y pagados, y para cada cobro con pagos, el detalle
-de su pago (qué transferencias, cuánto cada una).
-- Loading y error básico.
+## 9. Reglas de negocio que implemente
 
-## Reglas técnicas
+- No se permite asignar un monto mayor al saldo pendiente del cobro.
+- No se permite asignar un monto mayor al saldo disponible del movimiento.
+- La conciliacion puede incluir uno o varios cobros en una sola operacion.
+- El historico distingue cobros `pendientes`, `parciales` y `pagados`.
+- El frontend valida casos basicos, pero la validacion final queda en el backend.
 
-- Usar `NEXT_PUBLIC_API_URL`.
-- Usar `styled-components`.
-- En TypeScript, no usar `any`.
-- No cambiar el setup base del repositorio.
 
-## Entregables
+## 10. Preguntas que me quedaron
 
-1. Código funcional.
-2. Lista de funcionalidades implementadas y pendientes.
-3. Breve explicación del flujo de datos end-to-end.
-4. **Supuestos y preguntas**: lista los supuestos que tomaste donde el enunciado no era
-  explícito, y las preguntas que le harías al equipo de producto antes de llevar esto
-   a producción.
-
+- ¿La UF debe seguir fija o debe variar por fecha?
+- ¿Quien puede crear, editar y conciliar?
+- ¿Como se corrige una conciliacion mal hecha?
+- ¿Los datos se cargan manualmente o desde otro sistema?
+- ¿Que filtros son obligatorios para operar?
+- ¿Que roles pueden ver, editar o eliminar?

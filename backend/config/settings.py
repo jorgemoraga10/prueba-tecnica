@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "tasks",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -87,4 +88,12 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    "EXCEPTION_HANDLER": "tasks.exceptions.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Payments Reconciliation API",
+    "DESCRIPTION": "API para conciliacion de pagos de arriendo.",
+    "VERSION": "1.0.0",
 }
